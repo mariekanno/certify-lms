@@ -84,7 +84,7 @@ class QaThreadPolicy
      *
      * admin はモデレーション削除可。
      * student は投稿者本人のみ。
-     * 投稿者側の追加削除条件は PM 回答後に反映する。
+     * 回答が付いている場合の削除制限は Controller 側で判定する。
      */
     public function delete(User $user, QaThread $thread): bool
     {

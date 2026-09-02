@@ -40,4 +40,13 @@ class StoreThreadRequest extends FormRequest
             ],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'certification_id' => '資格',
+            'title' => 'タイトル',
+            'body' => '本文',
+        ];
+    }
 }

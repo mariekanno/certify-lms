@@ -35,4 +35,12 @@ class UpdateThreadRequest extends FormRequest
             ],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'title' => 'タイトル',
+            'body' => '本文',
+        ];
+    }
 }

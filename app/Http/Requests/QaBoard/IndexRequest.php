@@ -59,4 +59,14 @@ class IndexRequest extends FormRequest
             'keyword' => $this->input('keyword'),
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'certification_id' => '資格',
+            'status' => 'ステータス',
+            'keyword' => 'キーワード',
+            'page' => 'ページ番号',
+        ];
+    }
 }

@@ -30,4 +30,11 @@ class UpdateReplyRequest extends FormRequest
             ],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'body' => '回答',
+        ];
+    }
 }

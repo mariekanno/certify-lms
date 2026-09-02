@@ -174,6 +174,14 @@ class QaThreadController extends Controller
     ): RedirectResponse {
         $this->authorize('delete', $thread);
 
+        // 管理者以外は、回答が付いている質問を削除できない
+        if (
+            $request->user()->role !== UserRole::Admin
+            && $thread->replies()->exists()
+        ) {
+            abort(409, '回答が付いている質問は削除できません。');
+        }
+
         $thread->delete();
 
         if ($request->routeIs('admin.*')) {
@@ -201,7 +209,7 @@ class QaThreadController extends Controller
 
         return redirect()
             ->route('qa-board.show', $thread)
-            ->with('success', '質問を解決済みにしました。');
+            ->with('success', '質問を解決済にマークしました。');
     }
 
     /**

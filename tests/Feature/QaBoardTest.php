@@ -324,7 +324,7 @@ class QaBoardTest extends TestCase
 
         $response
             ->assertRedirect(route('qa-board.show', $thread))
-            ->assertSessionHas('success', '質問を解決済みにしました。');
+            ->assertSessionHas('success', '質問を解決済にマークしました。');
 
         $thread->refresh();
 
@@ -499,7 +499,7 @@ class QaBoardTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_admin_can_delete_question(): void
+    public function test_admin_can_delete_question_with_replies(): void
     {
         $admin = User::factory()->admin()->create();
         $student = User::factory()->student()->inProgress()->create();
@@ -508,6 +508,11 @@ class QaBoardTest extends TestCase
         $thread = QaThread::factory()->create([
             'user_id' => $student->id,
             'certification_id' => $certification->id,
+        ]);
+
+        $reply = QaReply::factory()->create([
+            'qa_thread_id' => $thread->id,
+            'user_id' => $student->id,
         ]);
 
         $response = $this
@@ -520,6 +525,10 @@ class QaBoardTest extends TestCase
 
         $this->assertDatabaseMissing('qa_threads', [
             'id' => $thread->id,
+        ]);
+
+        $this->assertDatabaseMissing('qa_replies', [
+            'id' => $reply->id,
         ]);
     }
 
@@ -696,5 +705,72 @@ class QaBoardTest extends TestCase
                     && $threads->total() === 16
                     && $threads->lastPage() === 2;
             });
+    }
+
+    public function test_student_can_delete_own_question_without_replies(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $certification = Certification::factory()
+            ->published()
+            ->create();
+
+        $thread = QaThread::factory()->create([
+            'user_id' => $student->id,
+            'certification_id' => $certification->id,
+        ]);
+
+        $response = $this
+            ->actingAs($student)
+            ->delete(route('qa-board.destroy', $thread));
+
+        $response
+            ->assertRedirect(route('qa-board.index'))
+            ->assertSessionHas('success', '質問を削除しました。');
+
+        $this->assertDatabaseMissing('qa_threads', [
+            'id' => $thread->id,
+        ]);
+    }
+
+    public function test_student_cannot_delete_own_question_with_replies(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $certification = Certification::factory()
+            ->published()
+            ->create();
+
+        $thread = QaThread::factory()->create([
+            'user_id' => $student->id,
+            'certification_id' => $certification->id,
+        ]);
+
+        QaReply::factory()->create([
+            'qa_thread_id' => $thread->id,
+            'user_id' => $student->id,
+        ]);
+
+        $response = $this
+            ->actingAs($student)
+            ->from(route('qa-board.show', $thread))
+            ->delete(route('qa-board.destroy', $thread));
+
+        $response
+            ->assertRedirect(route('qa-board.show', $thread))
+            ->assertSessionHas(
+                'error',
+                '回答が付いている質問は削除できません。'
+            );
+
+        $this->assertDatabaseHas('qa_threads', [
+            'id' => $thread->id,
+        ]);
     }
 }
