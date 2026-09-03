@@ -13,6 +13,7 @@ use App\Http\Controllers\ChatRoomController;
 use App\Http\Controllers\ContentSearchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\EnrollmentGoalController;
 use App\Http\Controllers\EnrollmentManagementController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\LearningHourTargetController;
@@ -75,6 +76,37 @@ Route::middleware('auth')->group(function () {
     Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])
         ->withTrashed()
         ->name('enrollments.show');
+
+    Route::middleware('auth')->group(function () {
+        // ダッシュボード
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+
+        // 受講登録
+        Route::get('enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
+
+        Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])
+            ->withTrashed()
+            ->name('enrollments.show');
+
+        // 個人学習目標
+        Route::post('/enrollments/{enrollment}/goals', [EnrollmentGoalController::class, 'store'])
+            ->name('enrollments.goals.store');
+
+        Route::get('/enrollment-goals/{goal}/edit', [EnrollmentGoalController::class, 'edit'])
+            ->name('enrollment-goals.edit');
+
+        Route::patch('/enrollment-goals/{goal}', [EnrollmentGoalController::class, 'update'])
+            ->name('enrollment-goals.update');
+
+        Route::delete('/enrollment-goals/{goal}', [EnrollmentGoalController::class, 'destroy'])
+            ->name('enrollment-goals.destroy');
+
+        Route::post('/enrollment-goals/{goal}/achieve', [EnrollmentGoalController::class, 'markAchieved'])
+            ->name('enrollment-goals.markAchieved');
+
+        Route::delete('/enrollment-goals/{goal}/achieve', [EnrollmentGoalController::class, 'unmarkAchieved'])
+            ->name('enrollment-goals.unmarkAchieved');
+    });
 });
 
 // ============================================================
