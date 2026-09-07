@@ -25,6 +25,12 @@ class DestroyAction
             );
         }
 
+        if ($plan->userPlanLogs()->exists()) {
+            throw new PlanNotDeletableException(
+                '利用履歴があるプランは削除できません。'
+            );
+        }
+
         DB::transaction(function () use ($plan): void {
             $plan->delete();
         });

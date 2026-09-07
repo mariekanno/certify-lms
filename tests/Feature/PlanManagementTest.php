@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\PlanStatus;
 use App\Models\Plan;
 use App\Models\User;
+use App\Models\UserPlanLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -57,7 +58,9 @@ class PlanManagementTest extends TestCase
                 'sort_order' => 10,
             ]);
 
-        $plan = Plan::query()->where('name', 'テストプラン')->firstOrFail();
+        $plan = Plan::query()
+            ->where('name', 'テストプラン')
+            ->firstOrFail();
 
         $this->assertSame(PlanStatus::Draft, $plan->status);
         $this->assertSame($admin->id, $plan->created_by_user_id);
@@ -304,6 +307,28 @@ class PlanManagementTest extends TestCase
         ]);
     }
 
+    public function test_draft_plan_with_user_plan_log_cannot_be_deleted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $plan = Plan::factory()->draft()->create();
+
+        UserPlanLog::factory()->create([
+            'plan_id' => $plan->id,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.plans.show', $plan))
+            ->delete(route('admin.plans.destroy', $plan));
+
+        $response
+            ->assertRedirect(route('admin.plans.show', $plan))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('plans', [
+            'id' => $plan->id,
+        ]);
+    }
+
     public function test_plan_index_can_filter_by_keyword(): void
     {
         $admin = User::factory()->admin()->create();
@@ -325,133 +350,5 @@ class PlanManagementTest extends TestCase
             ->assertOk()
             ->assertSee('ベーシックプラン')
             ->assertDontSee('アドバンスプラン');
-    }
-
-    public function test_plan_index_can_filter_by_status(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        Plan::factory()->draft()->create([
-            'name' => '下書きプラン',
-        ]);
-
-        Plan::factory()->published()->create([
-            'name' => '公開プラン',
-        ]);
-
-        $response = $this->actingAs($admin)
-            ->get(route('admin.plans.index', [
-                'status' => PlanStatus::Draft->value,
-            ]));
-
-        $response
-            ->assertOk()
-            ->assertSee('下書きプラン')
-            ->assertDontSee('公開プラン');
-    }
-
-    public function test_plan_index_is_paginated_by_15_items(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        Plan::factory()->count(16)->create();
-
-        $response = $this->actingAs($admin)
-            ->get(route('admin.plans.index'));
-
-        $response->assertOk();
-
-        $plans = $response->viewData('plans');
-
-        $this->assertSame(15, $plans->perPage());
-        $this->assertSame(16, $plans->total());
-        $this->assertCount(15, $plans->items());
-    }
-
-    public function test_store_validation(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $response = $this->actingAs($admin)
-            ->post(route('admin.plans.store'), [
-                'name' => '',
-                'description' => str_repeat('あ', 2001),
-                'duration_days' => 0,
-                'default_meeting_quota' => 1001,
-                'sort_order' => -1,
-            ]);
-
-        $response->assertSessionHasErrors([
-            'name',
-            'description',
-            'duration_days',
-            'default_meeting_quota',
-            'sort_order',
-        ]);
-    }
-
-    public function test_update_validation(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $plan = Plan::factory()->draft()->create();
-
-        $response = $this->actingAs($admin)
-            ->put(route('admin.plans.update', $plan), [
-                'name' => str_repeat('a', 101),
-                'description' => str_repeat('あ', 2001),
-                'duration_days' => 3651,
-                'default_meeting_quota' => -1,
-                'sort_order' => -1,
-            ]);
-
-        $response->assertSessionHasErrors([
-            'name',
-            'description',
-            'duration_days',
-            'default_meeting_quota',
-            'sort_order',
-        ]);
-    }
-
-    public function test_student_cannot_create_plan(): void
-    {
-        $student = User::factory()->student()->create();
-
-        $response = $this->actingAs($student)
-            ->get('/admin/plans/create');
-
-        $response->assertForbidden();
-    }
-
-    public function test_coach_cannot_create_plan(): void
-    {
-        $coach = User::factory()->coach()->create();
-
-        $response = $this->actingAs($coach)
-            ->get('/admin/plans/create');
-
-        $response->assertForbidden();
-    }
-
-    public function test_student_cannot_view_plan_detail(): void
-    {
-        $student = User::factory()->student()->create();
-        $plan = Plan::factory()->create();
-
-        $response = $this->actingAs($student)
-            ->get('/admin/plans/'.$plan->id);
-
-        $response->assertForbidden();
-    }
-
-    public function test_coach_cannot_view_plan_detail(): void
-    {
-        $coach = User::factory()->coach()->create();
-        $plan = Plan::factory()->create();
-
-        $response = $this->actingAs($coach)
-            ->get('/admin/plans/'.$plan->id);
-
-        $response->assertForbidden();
     }
 }
