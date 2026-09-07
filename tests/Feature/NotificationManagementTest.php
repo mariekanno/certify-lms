@@ -521,4 +521,57 @@ final class NotificationManagementTest extends TestCase
             MeetingCanceledNotification::class,
         );
     }
+
+    public function test_notification_channels_are_empty_for_non_in_progress_user(): void
+    {
+        $user = User::factory()->student()->create([
+            'status' => UserStatus::Graduated,
+        ]);
+
+        $thread = QaThread::factory()->create();
+
+        $reply = $thread->replies()->create([
+            'user_id' => User::factory()->student()->inProgress()->create()->id,
+            'body' => 'テスト回答です。',
+        ]);
+
+        $notification = new QaReplyReceivedNotification($thread, $reply);
+
+        $this->assertSame([], $notification->via($user));
+    }
+
+    public function test_notification_channels_are_empty_for_admin(): void
+    {
+        $admin = User::factory()->admin()->inProgress()->create();
+
+        $thread = QaThread::factory()->create();
+
+        $reply = $thread->replies()->create([
+            'user_id' => User::factory()->student()->inProgress()->create()->id,
+            'body' => 'テスト回答です。',
+        ]);
+
+        $notification = new QaReplyReceivedNotification($thread, $reply);
+
+        $this->assertSame([], $notification->via($admin));
+    }
+
+    public function test_notification_channels_include_database_and_mail_for_in_progress_student(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+
+        $thread = QaThread::factory()->create();
+
+        $reply = $thread->replies()->create([
+            'user_id' => User::factory()->student()->inProgress()->create()->id,
+            'body' => 'テスト回答です。',
+        ]);
+
+        $notification = new QaReplyReceivedNotification($thread, $reply);
+
+        $this->assertSame(
+            ['database', 'mail'],
+            $notification->via($student)
+        );
+    }
 }

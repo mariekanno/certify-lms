@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\ChatMessage;
 use App\Models\ChatRoom;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -24,6 +27,14 @@ final class ChatMessageReceivedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
+        if (
+            ! $notifiable instanceof User
+            || $notifiable->status !== UserStatus::InProgress
+            || $notifiable->role === UserRole::Admin
+        ) {
+            return [];
+        }
+
         return ['database', 'mail'];
     }
 
