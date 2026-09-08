@@ -99,6 +99,15 @@ class Enrollment extends Model
     }
 
     /**
+     * @return HasMany<EnrollmentGoal, $this>
+     */
+    public function goals(): HasMany
+    {
+        return $this->hasMany(EnrollmentGoal::class)
+            ->displayOrder();
+    }
+
+    /**
      * 本受講登録をデフォルト資格として指している受講生(0 または 1 件)。
      * Enrollment は単一受講生に属するため、`defaultedByUser` も 1 件以下となる。
      *

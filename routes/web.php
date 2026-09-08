@@ -13,10 +13,12 @@ use App\Http\Controllers\ChatRoomController;
 use App\Http\Controllers\ContentSearchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\EnrollmentGoalController;
 use App\Http\Controllers\EnrollmentManagementController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\LearningHourTargetController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\MeetingPackController;
 use App\Http\Controllers\MeetingQuotaHistoryController;
 use App\Http\Controllers\MockExamAnswerController;
 use App\Http\Controllers\MockExamCatalogController;
@@ -24,7 +26,9 @@ use App\Http\Controllers\MockExamController;
 use App\Http\Controllers\MockExamQuestionController;
 use App\Http\Controllers\MockExamSessionController;
 use App\Http\Controllers\MockExamSessionMonitorController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PartController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\QaReplyController;
 use App\Http\Controllers\QaThreadController;
 use App\Http\Controllers\QuestionCategoryController;
@@ -39,13 +43,13 @@ use App\Http\Controllers\SectionQuestionController;
 use App\Http\Controllers\SectionQuizController;
 use App\Http\Controllers\SectionQuizResultController;
 use App\Http\Controllers\Settings\AvailabilityController as SettingsAvailabilityController;
+use App\Http\Controllers\Settings\AvatarController as SettingsAvatarController;
+use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
+use App\Http\Controllers\Settings\ProfileController as SettingsProfileController;
 use App\Http\Controllers\Settings\SettingsDefaultEnrollmentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WeakDrillController;
 use App\Http\Controllers\WeakDrillResultController;
-use App\Http\Controllers\Settings\AvatarController as SettingsAvatarController;
-use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
-use App\Http\Controllers\Settings\ProfileController as SettingsProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -75,31 +79,61 @@ Route::middleware('auth')->group(function () {
     // 認可は EnrollmentPolicy::viewAny / view で 3 ロール対応済。閲覧範囲は EnrollmentController で
     // ロール別 eager-load + Blade の @can / @if で UI を出し分ける。
     Route::get('enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
+
     Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])
         ->withTrashed()
         ->name('enrollments.show');
 
-// ============================================================
-// 全ロール共通 — 設定・プロフィール
-// ============================================================
-Route::prefix('settings')
-    ->name('settings.')
-    ->group(function () {
-        Route::get('profile', [SettingsProfileController::class, 'show'])
-            ->name('profile.show');
+    // ============================================================
+    // 全ロール共通 — 設定・プロフィール
+    // ============================================================
+    Route::prefix('settings')
+        ->name('settings.')
+        ->group(function () {
+            Route::get('profile', [SettingsProfileController::class, 'show'])
+                ->name('profile.show');
 
-        Route::patch('profile', [SettingsProfileController::class, 'update'])
-            ->name('profile.update');
+            Route::patch('profile', [SettingsProfileController::class, 'update'])
+                ->name('profile.update');
 
-        Route::post('avatar', [SettingsAvatarController::class, 'store'])
-            ->name('avatar.store');
+            Route::post('avatar', [SettingsAvatarController::class, 'store'])
+                ->name('avatar.store');
 
-        Route::delete('avatar', [SettingsAvatarController::class, 'destroy'])
-            ->name('avatar.destroy');
+            Route::delete('avatar', [SettingsAvatarController::class, 'destroy'])
+                ->name('avatar.destroy');
 
-        Route::put('password', [SettingsPasswordController::class, 'update'])
-            ->name('password.update');
-    });
+            Route::put('password', [SettingsPasswordController::class, 'update'])
+                ->name('password.update');
+        });
+
+    // 個人学習目標
+    Route::post('/enrollments/{enrollment}/goals', [EnrollmentGoalController::class, 'store'])
+        ->name('enrollments.goals.store');
+
+    Route::get('/enrollment-goals/{goal}/edit', [EnrollmentGoalController::class, 'edit'])
+        ->name('enrollment-goals.edit');
+
+    Route::patch('/enrollment-goals/{goal}', [EnrollmentGoalController::class, 'update'])
+        ->name('enrollment-goals.update');
+
+    Route::delete('/enrollment-goals/{goal}', [EnrollmentGoalController::class, 'destroy'])
+        ->name('enrollment-goals.destroy');
+
+    Route::post('/enrollment-goals/{goal}/achieve', [EnrollmentGoalController::class, 'markAchieved'])
+        ->name('enrollment-goals.markAchieved');
+
+    Route::delete('/enrollment-goals/{goal}/achieve', [EnrollmentGoalController::class, 'unmarkAchieved'])
+        ->name('enrollment-goals.unmarkAchieved');
+
+    // 通知
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
+        ->name('notifications.markAsRead');
+
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])
+        ->name('notifications.markAllAsRead');
 });
 
 // ============================================================
@@ -189,6 +223,20 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('invitations', [InvitationController::class, 'store'])->name('admin.invitations.store');
     Route::post('users/{user}/resend-invitation', [InvitationController::class, 'resend'])->name('admin.invitations.resend');
     Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('admin.invitations.destroy');
+
+    // プラン管理
+    Route::resource('plans', PlanController::class)
+        ->parameters(['plans' => 'plan'])
+        ->names('admin.plans');
+
+    Route::post('plans/{plan}/publish', [PlanController::class, 'publish'])
+        ->name('admin.plans.publish');
+
+    Route::post('plans/{plan}/archive', [PlanController::class, 'archive'])
+        ->name('admin.plans.archive');
+
+    Route::post('plans/{plan}/unarchive', [PlanController::class, 'unarchive'])
+        ->name('admin.plans.unarchive');
 
     // 資格マスタ管理(資格本体の CRUD + 状態遷移、admin のみ)
     Route::resource('certifications', CertificationController::class)
@@ -332,6 +380,17 @@ Route::middleware(['auth', 'role:admin,coach'])->prefix('admin')->group(function
         ->name('admin.section-questions.publish');
     Route::post('section-questions/{sectionQuestion}/unpublish', [SectionQuestionController::class, 'unpublish'])
         ->name('admin.section-questions.unpublish');
+
+    // 面談パック管理 — CRUD + 状態遷移
+    Route::resource('meeting-packs', MeetingPackController::class)
+        ->parameters(['meeting-packs' => 'plan'])
+        ->names('admin.meeting-packs');
+    Route::post('meeting-packs/{plan}/publish', [MeetingPackController::class, 'publish'])
+        ->name('admin.meeting-packs.publish');
+    Route::post('meeting-packs/{plan}/archive', [MeetingPackController::class, 'archive'])
+        ->name('admin.meeting-packs.archive');
+    Route::post('meeting-packs/{plan}/unarchive', [MeetingPackController::class, 'unarchive'])
+        ->name('admin.meeting-packs.unarchive');
 });
 
 // ============================================================
