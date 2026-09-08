@@ -252,4 +252,102 @@ class ProfileSettingsTest extends TestCase
 
         $response->assertRedirect('/login');
     }
+
+    public function test_coach_meeting_url_must_not_exceed_500_characters(): void
+    {
+        $coach = User::factory()->create([
+            'role' => UserRole::Coach,
+            'meeting_url' => null,
+        ]);
+
+        $response = $this
+            ->actingAs($coach)
+            ->patch(route('settings.profile.update'), [
+                'name' => $coach->name,
+                'bio' => $coach->bio,
+                'meeting_url' => 'https://example.com/'.str_repeat('a', 500),
+            ]);
+
+        $response->assertSessionHasErrors('meeting_url');
+    }
+
+    public function test_coach_can_clear_meeting_url(): void
+    {
+        $coach = User::factory()->create([
+            'role' => UserRole::Coach,
+            'meeting_url' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        $response = $this
+            ->actingAs($coach)
+            ->patch(route('settings.profile.update'), [
+                'name' => $coach->name,
+                'bio' => $coach->bio,
+                'meeting_url' => '',
+            ]);
+
+        $response->assertRedirect(route('settings.profile.show'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $coach->id,
+            'meeting_url' => null,
+        ]);
+    }
+
+    public function test_admin_cannot_update_meeting_url(): void
+    {
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'meeting_url' => null,
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->patch(route('settings.profile.update'), [
+                'name' => $admin->name,
+                'bio' => $admin->bio,
+                'meeting_url' => 'https://example.com/meeting',
+            ]);
+
+        $response->assertSessionHasErrors('meeting_url');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $admin->id,
+            'meeting_url' => null,
+        ]);
+    }
+
+    public function test_replacing_avatar_deletes_old_avatar(): void
+    {
+        Storage::fake('public');
+
+        Storage::disk('public')->put(
+            'avatars/old.jpg',
+            'dummy',
+        );
+
+        $user = User::factory()->create([
+            'avatar_url' => '/storage/avatars/old.jpg',
+        ]);
+
+        $file = UploadedFile::fake()->image('new.jpg');
+
+        $response = $this
+            ->actingAs($user)
+            ->post(route('settings.avatar.store'), [
+                'avatar' => $file,
+            ]);
+
+        $response->assertRedirect(route('settings.profile.show'));
+
+        Storage::disk('public')->assertMissing(
+            'avatars/old.jpg',
+        );
+
+        $user->refresh();
+
+        $newPath = str_replace('/storage/', '', $user->avatar_url);
+
+        Storage::disk('public')->assertExists($newPath);
+    }
 }

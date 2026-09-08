@@ -25,7 +25,7 @@ class UpdateProfileRequest extends FormRequest
         ];
 
         if ($this->user()?->role === UserRole::Coach) {
-            $rules['meeting_url'] = ['nullable', 'url', 'max:2048'];
+            $rules['meeting_url'] = ['nullable', 'url', 'max:500'];
         } else {
             $rules['meeting_url'] = ['prohibited'];
         }

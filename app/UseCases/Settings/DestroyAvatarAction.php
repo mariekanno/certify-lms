@@ -21,7 +21,11 @@ final class DestroyAvatarAction
         });
 
         if ($path !== null) {
-            Storage::disk('public')->delete($path);
+            try {
+                Storage::disk('public')->delete($path);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 

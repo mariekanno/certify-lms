@@ -52,7 +52,11 @@ final class StoreAvatarAction
         }
 
         if ($oldPath !== null && $oldPath !== $path) {
-            Storage::disk('public')->delete($oldPath);
+            try {
+                Storage::disk('public')->delete($oldPath);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 
