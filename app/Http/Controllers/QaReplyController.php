@@ -8,6 +8,7 @@ use App\Http\Requests\QaBoard\StoreReplyRequest;
 use App\Http\Requests\QaBoard\UpdateReplyRequest;
 use App\Models\QaReply;
 use App\Models\QaThread;
+use App\Notifications\QaReplyReceivedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,11 +22,17 @@ class QaReplyController extends Controller
         QaThread $thread,
         StoreReplyRequest $request,
     ): RedirectResponse {
-        QaReply::create([
+        $reply = QaReply::create([
             'qa_thread_id' => $thread->id,
             'user_id' => $request->user()->id,
             'body' => $request->validated('body'),
         ]);
+
+        if ($thread->user_id !== $request->user()->id) {
+            $thread->user->notify(
+                new QaReplyReceivedNotification($thread, $reply),
+            );
+        }
 
         return redirect()
             ->route('qa-board.show', $thread)
