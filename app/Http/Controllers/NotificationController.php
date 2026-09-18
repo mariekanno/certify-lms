@@ -36,17 +36,42 @@ final class NotificationController extends Controller
         ]);
     }
 
+    public function show(
+        DatabaseNotification $notification,
+        Request $request,
+    ): View {
+        $this->ensureOwnNotification(
+            $notification,
+            $request,
+        );
+
+        $notification->markAsRead();
+
+        return view('notifications.show', [
+            'notification' => $notification,
+        ]);
+    }
+
     public function markAsRead(
         DatabaseNotification $notification,
         Request $request,
     ): RedirectResponse {
-        abort_unless(
-            $notification->notifiable_id === $request->user()->id
-            && $notification->notifiable_type === $request->user()::class,
-            403,
+        $this->ensureOwnNotification(
+            $notification,
+            $request,
         );
 
         $notification->markAsRead();
+
+        if (
+            ($notification->data['notification_type'] ?? null)
+            === 'admin_announcement'
+        ) {
+            return redirect()->route(
+                'notifications.show',
+                $notification,
+            );
+        }
 
         $url = $notification->data['url'] ?? null;
 
@@ -66,5 +91,16 @@ final class NotificationController extends Controller
         return redirect()
             ->route('notifications.index')
             ->with('success', 'すべての通知を既読にしました。');
+    }
+
+    private function ensureOwnNotification(
+        DatabaseNotification $notification,
+        Request $request,
+    ): void {
+        abort_unless(
+            $notification->notifiable_id === $request->user()->id
+            && $notification->notifiable_type === $request->user()::class,
+            403,
+        );
     }
 }
