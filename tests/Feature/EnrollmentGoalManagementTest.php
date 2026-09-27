@@ -135,7 +135,7 @@ final class EnrollmentGoalManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('enrollments.show', $enrollment))
-            ->assertSessionHas('success', '目標を達成済みにしました。');
+            ->assertSessionHas('success', '目標を達成済にしました。');
 
         $this->assertNotNull(
             $goal->fresh()->achieved_at,
