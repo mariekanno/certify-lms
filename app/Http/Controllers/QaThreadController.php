@@ -179,7 +179,9 @@ class QaThreadController extends Controller
             $request->user()->role !== UserRole::Admin
             && $thread->replies()->exists()
         ) {
-            abort(409, '回答が付いている質問は削除できません。');
+            return redirect()
+                ->route('qa-board.show', $thread)
+                ->with('error', '回答が付いているスレッドは削除できません。');
         }
 
         $thread->delete();
