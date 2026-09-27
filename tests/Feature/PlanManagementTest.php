@@ -351,4 +351,25 @@ class PlanManagementTest extends TestCase
             ->assertSee('ベーシックプラン')
             ->assertDontSee('アドバンスプラン');
     }
+
+    public function test_sort_order_has_no_maximum_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.plans.store'), [
+                'name' => '並び順確認プラン',
+                'description' => null,
+                'duration_days' => 90,
+                'default_meeting_quota' => 12,
+                'sort_order' => 100000,
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('sort_order');
+
+        $this->assertDatabaseHas('plans', [
+            'name' => '並び順確認プラン',
+            'sort_order' => 100000,
+        ]);
+    }
 }
