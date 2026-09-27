@@ -174,7 +174,7 @@ class MeetingPackManagementTest extends TestCase
 
         $response
             ->assertRedirect(route('admin.meeting-packs.show', $plan))
-            ->assertSessionHas('success', '面談パックを下書きに戻しました。');
+            ->assertSessionHas('success', '面談パックを下書きへ戻しました。');
 
         $this->assertDatabaseHas('meeting_packs', [
             'id' => $plan->id,
@@ -449,5 +449,28 @@ class MeetingPackManagementTest extends TestCase
             ->get(route('admin.meeting-packs.show', $plan));
 
         $response->assertForbidden();
+    }
+
+    public function test_sort_order_has_no_maximum_limit(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->post(route('admin.meeting-packs.store'), [
+                'name' => '並び順確認パック',
+                'description' => null,
+                'meeting_count' => 3,
+                'price' => 9000,
+                'stripe_price_id' => null,
+                'sort_order' => 100000,
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('sort_order');
+
+        $this->assertDatabaseHas('meeting_packs', [
+            'name' => '並び順確認パック',
+            'sort_order' => 100000,
+        ]);
     }
 }
