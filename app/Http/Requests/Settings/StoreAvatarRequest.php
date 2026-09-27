@@ -21,8 +21,9 @@ class StoreAvatarRequest extends FormRequest
         return [
             'avatar' => [
                 'required',
+                'file',
                 'image',
-                'mimes:png,jpg,jpeg,webp',
+                'mimetypes:image/png,image/jpeg,image/webp',
                 'max:2048',
             ],
         ];
@@ -44,7 +45,7 @@ class StoreAvatarRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'avatar.mimes' => 'アイコン画像は PNG / JPG / WebP 形式で指定してください。',
+            'avatar.mimetypes' => 'アイコン画像は PNG / JPG / WebP 形式で指定してください。',
             'avatar.max' => 'アイコン画像は2MB以内で指定してください。',
         ];
     }

@@ -27,14 +27,11 @@ class UpdatePasswordRequest extends FormRequest
             ],
             'password' => [
                 'required',
-                'string',
                 'min:8',
                 'confirmed',
             ],
             'password_confirmation' => [
                 'required',
-                'string',
-                'min:8',
             ],
         ];
     }

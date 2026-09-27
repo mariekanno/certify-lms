@@ -96,9 +96,9 @@ class ProfileSettingsTest extends TestCase
         ]);
     }
 
-    public function test_non_coach_cannot_update_meeting_url(): void
+    public function test_non_coach_meeting_url_is_accepted_but_not_updated(): void
     {
-        $student = User::factory()->create([
+        $student = User::factory()->student()->create([
             'meeting_url' => null,
         ]);
 
@@ -110,7 +110,9 @@ class ProfileSettingsTest extends TestCase
                 'meeting_url' => 'https://example.com/meeting',
             ]);
 
-        $response->assertSessionHasErrors('meeting_url');
+        $response
+            ->assertRedirect(route('settings.profile.show'))
+            ->assertSessionDoesntHaveErrors('meeting_url');
 
         $this->assertDatabaseHas('users', [
             'id' => $student->id,
@@ -294,10 +296,9 @@ class ProfileSettingsTest extends TestCase
         ]);
     }
 
-    public function test_admin_cannot_update_meeting_url(): void
+    public function test_admin_meeting_url_is_accepted_but_not_updated(): void
     {
-        $admin = User::factory()->create([
-            'role' => UserRole::Admin,
+        $admin = User::factory()->admin()->create([
             'meeting_url' => null,
         ]);
 
@@ -309,7 +310,9 @@ class ProfileSettingsTest extends TestCase
                 'meeting_url' => 'https://example.com/meeting',
             ]);
 
-        $response->assertSessionHasErrors('meeting_url');
+        $response
+            ->assertRedirect(route('settings.profile.show'))
+            ->assertSessionDoesntHaveErrors('meeting_url');
 
         $this->assertDatabaseHas('users', [
             'id' => $admin->id,
@@ -349,5 +352,32 @@ class ProfileSettingsTest extends TestCase
         $newPath = str_replace('/storage/', '', $user->avatar_url);
 
         Storage::disk('public')->assertExists($newPath);
+    }
+
+    public function test_role_and_status_cannot_be_updated_from_profile(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $originalRole = $student->role;
+        $originalStatus = $student->status;
+
+        $response = $this
+            ->actingAs($student)
+            ->patch(route('settings.profile.update'), [
+                'name' => $student->name,
+                'bio' => $student->bio,
+                'role' => UserRole::Admin->value,
+                'status' => 'passed',
+            ]);
+
+        $response->assertRedirect(route('settings.profile.show'));
+
+        $student->refresh();
+
+        $this->assertSame($originalRole, $student->role);
+        $this->assertSame($originalStatus, $student->status);
     }
 }
