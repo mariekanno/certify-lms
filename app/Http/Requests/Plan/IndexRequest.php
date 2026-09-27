@@ -21,7 +21,6 @@ class IndexRequest extends FormRequest
         return [
             'keyword' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::enum(PlanStatus::class)],
-            'page' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -30,7 +29,6 @@ class IndexRequest extends FormRequest
         return [
             'keyword' => 'キーワード',
             'status' => 'ステータス',
-            'page' => 'ページ',
         ];
     }
 
