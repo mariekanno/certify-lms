@@ -216,6 +216,55 @@ class MeetingControllerTest extends TestCase
         ]);
     }
 
+    public function test_upsert_memo_accepts_body_with_2000_characters(): void
+    {
+        $coach = User::factory()->coach()->create();
+        $student = User::factory()->student()->create();
+        $meeting = Meeting::factory()
+            ->completed()
+            ->forCoach($coach)
+            ->forStudent($student)
+            ->create();
+
+        $body = str_repeat('あ', 2000);
+
+        $response = $this
+            ->actingAs($coach)
+            ->put(route('coach.meetings.memo', $meeting), [
+                'body' => $body,
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('meeting_memos', [
+            'meeting_id' => $meeting->id,
+            'body' => $body,
+        ]);
+    }
+
+    public function test_upsert_memo_rejects_body_over_2000_characters(): void
+    {
+        $coach = User::factory()->coach()->create();
+        $student = User::factory()->student()->create();
+        $meeting = Meeting::factory()
+            ->completed()
+            ->forCoach($coach)
+            ->forStudent($student)
+            ->create();
+
+        $response = $this
+            ->actingAs($coach)
+            ->put(route('coach.meetings.memo', $meeting), [
+                'body' => str_repeat('あ', 2001),
+            ]);
+
+        $response->assertSessionHasErrors('body');
+
+        $this->assertDatabaseMissing('meeting_memos', [
+            'meeting_id' => $meeting->id,
+        ]);
+    }
+
     public function test_fetch_availability_returns_json_slots(): void
     {
         $student = User::factory()->student()->inProgress()->create();
