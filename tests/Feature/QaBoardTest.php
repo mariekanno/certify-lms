@@ -766,11 +766,94 @@ class QaBoardTest extends TestCase
             ->assertRedirect(route('qa-board.show', $thread))
             ->assertSessionHas(
                 'error',
-                '回答が付いている質問は削除できません。'
+                '回答が付いているスレッドは削除できません。'
             );
 
         $this->assertDatabaseHas('qa_threads', [
             'id' => $thread->id,
         ]);
+    }
+
+    public function test_question_creation_rejects_blank_only_title_and_body(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $certification = Certification::factory()->published()->create();
+
+        $response = $this
+            ->actingAs($student)
+            ->post(route('qa-board.store'), [
+                'certification_id' => $certification->id,
+                'title' => '   ',
+                'body' => '　　　',
+            ]);
+
+        $response->assertSessionHasErrors([
+            'title',
+            'body',
+        ]);
+
+        $this->assertDatabaseCount('qa_threads', 0);
+    }
+
+    public function test_question_update_rejects_blank_only_title_and_body(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $certification = Certification::factory()->published()->create();
+
+        $thread = QaThread::factory()->create([
+            'user_id' => $student->id,
+            'certification_id' => $certification->id,
+        ]);
+
+        $response = $this
+            ->actingAs($student)
+            ->patch(route('qa-board.update', $thread), [
+                'title' => '   ',
+                'body' => '　　　',
+            ]);
+
+        $response->assertSessionHasErrors([
+            'title',
+            'body',
+        ]);
+
+        $this->assertDatabaseHas('qa_threads', [
+            'id' => $thread->id,
+            'title' => $thread->title,
+            'body' => $thread->body,
+        ]);
+    }
+
+    public function test_reply_creation_rejects_blank_only_body(): void
+    {
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $certification = Certification::factory()->published()->create();
+
+        $thread = QaThread::factory()->create([
+            'user_id' => $student->id,
+            'certification_id' => $certification->id,
+        ]);
+
+        $response = $this
+            ->actingAs($student)
+            ->post(route('qa-board.replies.store', $thread), [
+                'body' => '　　　',
+            ]);
+
+        $response->assertSessionHasErrors('body');
+
+        $this->assertDatabaseCount('qa_replies', 0);
     }
 }
