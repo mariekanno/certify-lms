@@ -574,4 +574,59 @@ final class NotificationManagementTest extends TestCase
             $notification->via($student)
         );
     }
+
+    public function test_invalid_tab_falls_back_to_all_notifications(): void
+    {
+        $user = User::factory()->create();
+
+        $this->createNotification(
+            $user,
+            title: '未読通知',
+        );
+
+        $this->createNotification(
+            $user,
+            title: '既読通知',
+            readAt: now(),
+        );
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('notifications.index', [
+                'tab' => 'invalid',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('未読通知')
+            ->assertSee('既読通知')
+            ->assertViewHas('tab', 'all');
+    }
+
+    public function test_mark_all_as_read_makes_unread_count_zero(): void
+    {
+        $user = User::factory()->create();
+
+        $this->createNotification(
+            $user,
+            title: '通知1',
+        );
+
+        $this->createNotification(
+            $user,
+            title: '通知2',
+        );
+
+        $this
+            ->actingAs($user)
+            ->post(route('notifications.markAllAsRead'));
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('notifications.index'));
+
+        $response
+            ->assertOk()
+            ->assertViewHas('unreadCount', 0);
+    }
 }
