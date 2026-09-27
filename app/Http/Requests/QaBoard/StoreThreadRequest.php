@@ -32,11 +32,13 @@ class StoreThreadRequest extends FormRequest
                 'required',
                 'string',
                 'max:200',
+                'not_regex:/^[ 　]+$/u',
             ],
             'body' => [
                 'required',
                 'string',
                 'max:5000',
+                'not_regex:/^[ 　]+$/u',
             ],
         ];
     }

@@ -28,6 +28,7 @@ class StoreReplyRequest extends FormRequest
                 'required',
                 'string',
                 'max:5000',
+                'not_regex:/^[ 　]+$/u',
             ],
         ];
     }
