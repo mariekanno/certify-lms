@@ -370,6 +370,63 @@ final class AnnouncementManagementTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_non_certification_target_rejects_certification_id(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
+        $certification = Certification::factory()
+            ->published()
+            ->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->from(route('admin.announcements.create'))
+            ->post(route('admin.announcements.store'), [
+                'title' => '全受講生へのお知らせ',
+                'body' => '本文です。',
+                'target_type' => AnnouncementTargetType::AllStudents->value,
+                'target_certification_id' => $certification->id,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.announcements.create'))
+            ->assertSessionHasErrors('target_certification_id');
+
+        $this->assertDatabaseCount('announcements', 0);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_non_user_target_rejects_user_id(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->from(route('admin.announcements.create'))
+            ->post(route('admin.announcements.store'), [
+                'title' => '全受講生へのお知らせ',
+                'body' => '本文です。',
+                'target_type' => AnnouncementTargetType::AllStudents->value,
+                'target_user_id' => $student->id,
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.announcements.create'))
+            ->assertSessionHasErrors('target_user_id');
+
+        $this->assertDatabaseCount('announcements', 0);
+
+        Notification::assertNothingSent();
+    }
+
     public function test_recipient_can_view_own_announcement_notification(): void
     {
         $student = User::factory()

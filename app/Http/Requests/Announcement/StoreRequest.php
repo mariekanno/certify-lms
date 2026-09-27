@@ -28,12 +28,20 @@ class StoreRequest extends FormRequest
             'body' => ['required', 'string', 'max:5000'],
             'target_type' => [
                 'required',
-                Rule::enum(AnnouncementTargetType::class),
+                'string',
+                Rule::in([
+                    AnnouncementTargetType::AllStudents->value,
+                    AnnouncementTargetType::Certification->value,
+                    AnnouncementTargetType::User->value,
+                ]),
             ],
             'target_certification_id' => [
                 'nullable',
                 Rule::requiredIf(
                     $this->input('target_type') === AnnouncementTargetType::Certification->value
+                ),
+                Rule::prohibitedIf(
+                    $this->input('target_type') !== AnnouncementTargetType::Certification->value
                 ),
                 'ulid',
                 'exists:certifications,id',
@@ -42,6 +50,9 @@ class StoreRequest extends FormRequest
                 'nullable',
                 Rule::requiredIf(
                     $this->input('target_type') === AnnouncementTargetType::User->value
+                ),
+                Rule::prohibitedIf(
+                    $this->input('target_type') !== AnnouncementTargetType::User->value
                 ),
                 'ulid',
                 Rule::exists('users', 'id')->where(function ($query) {
