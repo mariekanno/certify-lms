@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\QaBoard;
 
-use App\Enums\QaThreadStatus;
 use App\Models\QaThread;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class IndexRequest extends FormRequest
 {
@@ -25,11 +23,10 @@ class IndexRequest extends FormRequest
             'certification_id' => [
                 'nullable',
                 'ulid',
-                'exists:certifications,id',
             ],
             'status' => [
                 'nullable',
-                Rule::enum(QaThreadStatus::class),
+                'in:resolved,unresolved',
             ],
             'keyword' => [
                 'nullable',
