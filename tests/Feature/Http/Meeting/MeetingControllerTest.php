@@ -9,11 +9,14 @@ use App\Enums\MeetingStatus;
 use App\Models\Certification;
 use App\Models\CoachAvailability;
 use App\Models\Enrollment;
+use App\Models\GoogleCredential;
 use App\Models\Meeting;
 use App\Models\User;
+use App\Services\GoogleCalendarService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 class MeetingControllerTest extends TestCase
@@ -115,6 +118,75 @@ class MeetingControllerTest extends TestCase
         ]);
     }
 
+    public function test_store_succeeds_when_google_calendar_event_creation_fails(): void
+    {
+        $student = User::factory()->student()->inProgress()->create([
+            'max_meetings' => 3,
+        ]);
+
+        $admin = User::factory()->admin()->create();
+
+        $coach = User::factory()->coach()->inProgress()->create([
+            'meeting_url' => 'https://meet.example.com/coach-room',
+        ]);
+
+        $certification = Certification::factory()->published()->create();
+
+        $this->attachCoach($certification, $coach, $admin);
+
+        CoachAvailability::factory()
+            ->forCoach($coach)
+            ->onDay(1)
+            ->timeRange('09:00:00', '18:00:00')
+            ->create();
+
+        GoogleCredential::query()->create([
+            'user_id' => $coach->id,
+            'calendar_id' => 'primary',
+            'access_token' => 'test-access-token',
+            'refresh_token' => 'test-refresh-token',
+            'token_expires_at' => now()->addHour(),
+            'connected_at' => now(),
+        ]);
+
+        $enrollment = Enrollment::factory()
+            ->for($student, 'user')
+            ->for($certification)
+            ->learning()
+            ->create();
+
+        $scheduledAt = now()
+            ->startOfDay()
+            ->next(Carbon::MONDAY)
+            ->setTime(10, 0);
+
+        $mock = $this->mock(GoogleCalendarService::class);
+
+        $mock->shouldReceive('busyPeriods')
+            ->andReturn([]);
+
+        $mock->shouldReceive('createEvent')
+            ->once()
+            ->andThrow(new RuntimeException('Google Calendar API failed.'));
+
+        $response = $this->actingAs($student)->post(
+            route('meetings.store', $enrollment),
+            [
+                'scheduled_at' => $scheduledAt->format('Y-m-d\TH:i:s'),
+                'topic' => '相談したい',
+            ],
+        );
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('meetings', [
+            'student_id' => $student->id,
+            'coach_id' => $coach->id,
+            'enrollment_id' => $enrollment->id,
+            'status' => MeetingStatus::Reserved->value,
+        ]);
+    }
+
     public function test_store_rejects_non_zero_minutes(): void
     {
         $student = User::factory()->student()->inProgress()->create(['max_meetings' => 3]);
@@ -162,6 +234,57 @@ class MeetingControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSame(MeetingStatus::Canceled, $meeting->fresh()->status);
+    }
+
+    public function test_cancel_succeeds_when_google_calendar_event_deletion_fails(): void
+    {
+        $student = User::factory()->student()->inProgress()->create([
+            'max_meetings' => 5,
+        ]);
+
+        $coach = User::factory()->coach()->create();
+
+        GoogleCredential::query()->create([
+            'user_id' => $coach->id,
+            'calendar_id' => 'primary',
+            'access_token' => 'test-access-token',
+            'refresh_token' => 'test-refresh-token',
+            'token_expires_at' => now()->addHour(),
+            'connected_at' => now(),
+        ]);
+
+        $meeting = Meeting::factory()
+            ->reserved()
+            ->forCoach($coach)
+            ->forStudent($student)
+            ->create([
+                'scheduled_at' => now()->addDays(3)->startOfHour(),
+                'google_calendar_event_id' => 'google-event-id',
+            ]);
+
+        $mock = $this->mock(GoogleCalendarService::class);
+
+        $mock->shouldReceive('deleteEvent')
+            ->once()
+            ->withArgs(function (GoogleCredential $credential, string $eventId): bool {
+                return $credential->calendar_id === 'primary'
+                    && $eventId === 'google-event-id';
+            })
+            ->andThrow(new RuntimeException('Google Calendar API failed.'));
+
+        $response = $this->actingAs($student)
+            ->post(route('meetings.cancel', $meeting));
+
+        $response->assertRedirect();
+
+        $meeting->refresh();
+
+        $this->assertSame(
+            MeetingStatus::Canceled,
+            $meeting->status,
+        );
+
+        $this->assertNotNull($meeting->canceled_at);
     }
 
     public function test_index_as_coach_only_lists_own_meetings(): void
