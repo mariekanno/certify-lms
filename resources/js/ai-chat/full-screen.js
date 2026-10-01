@@ -84,13 +84,13 @@ function initForm() {
     const client = new AiChatClient({
         storeUrl: form.dataset.storeUrl,
         // ユーザー発言は送信直後に楽観表示するため、サーバー応答時の重複描画はしない
-        onUserMessage: () => {},
+        onUserMessage: () => { },
         onAssistantMessage: (msg) => {
             clearTyping();
             renderFullScreenMessage(list, msg, { viewerName });
         },
         onTitleUpdated: ({ title }) => {
-            if (! title) return;
+            if (!title) return;
             if (titleEl) titleEl.textContent = title;
             const parts = document.title.split(' | ');
             document.title = parts.length > 1 ? `${title} | ${parts[parts.length - 1]}` : title;
@@ -142,8 +142,17 @@ function initForm() {
 }
 
 function describeError(err) {
-    if (err.type === 'rate-limit') return '本日の利用上限に達しました。明日 0:00 以降に再度ご利用ください。';
-    if (err.type === 'validation') return '入力内容を確認してください (1-2000 文字)。';
+    if (err.type === 'unavailable') {
+        return 'AI相談は現在利用できません。管理者にお問い合わせください。';
+    }
+
+    if (err.type === 'rate-limit') {
+        return '本日の利用上限に達しました。明日 0:00 以降に再度ご利用ください。';
+    }
+
+    if (err.type === 'validation') {
+        return '入力内容を確認してください (1-2000 文字)。';
+    }
     if (err.type === 'llm') {
         const upstream = err.upstreamStatus;
         if (upstream === 429) {
