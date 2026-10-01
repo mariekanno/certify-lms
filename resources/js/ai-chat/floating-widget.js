@@ -72,7 +72,7 @@ export function initAiChatWidget() {
             panel.setAttribute('aria-hidden', 'false');
             panel.removeAttribute('inert');
             fab.style.display = 'none';
-            try { sessionStorage.setItem(STORAGE_OPEN, '1'); } catch (e) {}
+            try { sessionStorage.setItem(STORAGE_OPEN, '1'); } catch (e) { }
             input?.focus();
         } else {
             panel.classList.add('hidden');
@@ -81,7 +81,7 @@ export function initAiChatWidget() {
             panel.setAttribute('aria-hidden', 'true');
             panel.setAttribute('inert', '');
             fab.style.display = '';
-            try { sessionStorage.setItem(STORAGE_OPEN, '0'); } catch (e) {}
+            try { sessionStorage.setItem(STORAGE_OPEN, '0'); } catch (e) { }
             if (lastFocus && typeof lastFocus.focus === 'function') {
                 lastFocus.focus();
             }
@@ -153,6 +153,9 @@ export function initAiChatWidget() {
     }
 
     function describeError(err) {
+        if (err?.type === 'unavailable') {
+            return 'AI相談は現在利用できません。管理者にお問い合わせください。';
+        }
         if (err?.type === 'rate-limit') return '本日の利用上限に達しました。明日 0:00 以降に再度ご利用ください。';
         if (err?.type === 'llm') {
             const upstream = err.upstreamStatus;
@@ -215,7 +218,7 @@ export function initAiChatWidget() {
         try {
             sessionStorage.removeItem(STORAGE_CONV);
             sessionStorage.removeItem(STORAGE_CONV_SECTION);
-        } catch (e) {}
+        } catch (e) { }
         // 過去メッセージを全削除して welcome を再生成
         messagesEl.innerHTML = '';
         renderWelcomeMessage();
@@ -280,7 +283,7 @@ export function initAiChatWidget() {
                 sessionStorage.setItem(STORAGE_CONV, currentConversationId);
                 // section コンテキストの「鍵」を保存 → 次回 init 時に sectionId 一致を確認
                 sessionStorage.setItem(STORAGE_CONV_SECTION, sectionId ?? '');
-            } catch (e) {}
+            } catch (e) { }
 
             return currentConversationId;
         }
@@ -369,5 +372,5 @@ export function initAiChatWidget() {
     // Restore open state
     try {
         if (sessionStorage.getItem(STORAGE_OPEN) === '1') setOpen(true);
-    } catch (e) {}
+    } catch (e) { }
 }

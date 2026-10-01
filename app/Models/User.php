@@ -132,6 +132,16 @@ class User extends Authenticatable
     }
 
     /**
+     * ユーザーが所有する AI チャット会話。
+     *
+     * @return HasMany<AiChatConversation, $this>
+     */
+    public function aiChatConversations(): HasMany
+    {
+        return $this->hasMany(AiChatConversation::class);
+    }
+
+    /**
      * @return HasMany<Certificate, $this>
      */
     public function certificates(): HasMany
