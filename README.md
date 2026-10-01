@@ -113,7 +113,7 @@ http://localhost:8000 にアクセスし、下記の[ログインアカウント
 
 ```bash
 sail artisan test                  # 全テスト実行
-sail artisan test --filter=Xxx    # クラス名・メソッド名で絞り込み
+sail artisan test --filter=Xxx     # クラス名・メソッド名で絞り込み
 ```
 
 ## コード整形
@@ -134,15 +134,95 @@ sail bin pint --test     # 整形漏れの確認（CI 相当のチェック）
 - PHPUnit / Laravel Pint
 - league/commonmark（教材本文の Markdown レンダリング）
 - Pusher（チャットのリアルタイム配信）
+- Stripe（追加面談購入の決済）
 - Docker（Laravel Sail）
 
 ## 環境変数
 
-`.env.example` をコピーするだけで、すべての機能がローカルで動作します（メールは Mailpit に配信されます）。
+`.env.example` をコピーするだけで、基本機能はローカルで動作します（メールは Mailpit に配信されます）。
 
-- `PUSHER_*` — チャットのリアルタイム配信に使用します。有効にする場合は Pusher のキーを取得して設定し、`BROADCAST_DRIVER=pusher` に変更してください。未設定（既定の `BROADCAST_DRIVER=log`）でもメッセージの送受信自体は動作し、相手画面へのリアルタイム反映のみ行われません
+- `PUSHER_*` — チャットのリアルタイム配信に使用します。有効にする場合は Pusher のキーを取得して設定し、`BROADCAST_DRIVER=pusher` に変更してください。未設定（既定の `BROADCAST_DRIVER=log`）でもメッセージの送受信自体は動作し、相手画面へのリアルタイム反映のみ行われません。
 
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` — コーチの Google Calendar 連携に使用します。Google Cloud Console で OAuth 2.0 クライアントを作成し、Google Calendar API を有効化したうえで設定してください。ローカル開発では `GOOGLE_REDIRECT_URI=http://localhost:8000/settings/google-calendar/callback` を使用します。
+
 - Google Calendar のアクセストークン・リフレッシュトークンはデータベースに保存されます。本実装では暗号化保存は行っていないため、本番環境で運用する場合は Laravel の暗号化機能等を利用して認証情報を暗号化して保存することを推奨します。
 
+- `STRIPE_SECRET` / `STRIPE_WEBHOOK_SECRET` — 追加面談購入の Stripe 決済に使用します。Stripe のサンドボックス環境で API キーを取得し、`STRIPE_SECRET` には `sk_test_...` 形式のシークレットキーを設定してください。`STRIPE_WEBHOOK_SECRET` には Stripe CLI の `stripe listen` 実行時に表示される `whsec_...` 形式の Webhook signing secret を設定します。
+
 新しい環境変数やセットアップ手順を追加した場合は、`.env.example` と本 README に追記し、チームの誰でも環境を再現できる状態を保ってください。
+
+## Stripe Webhook のローカル動作確認
+
+Stripe CLI を使用して、Stripe からの Webhook をローカル環境へ転送します。
+
+### 1. Stripe CLI にログイン
+
+```bash
+stripe login
+```
+
+ブラウザで Stripe の認証画面が開くので、サンドボックス環境を選択して認証します。
+
+### 2. Webhook をローカルへ転送
+
+```bash
+stripe listen \
+  --events checkout.session.completed \
+  --forward-to localhost:8000/webhooks/stripe
+```
+
+実行すると、以下のような Webhook signing secret が表示されます。
+
+```text
+whsec_...
+```
+
+### 3. `.env` に Stripe 設定を追加
+
+```env
+STRIPE_SECRET=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+設定後、Laravel の設定キャッシュをクリアします。
+
+```bash
+sail artisan config:clear
+```
+
+Sail エイリアスを設定していない場合は、以下を実行してください。
+
+```bash
+./vendor/bin/sail artisan config:clear
+```
+
+### 4. テスト決済
+
+受講中の受講生でログインし、以下へアクセスします。
+
+```text
+http://localhost:8000/meeting-quota/checkout
+```
+
+購入する面談パックを選択すると、Stripe Checkout のサンドボックス決済画面へ遷移します。
+
+テストカード例：
+
+```text
+4242 4242 4242 4242
+```
+
+有効期限は未来の日付、CVC は任意の3桁を使用します。
+
+### 5. Webhook 受信を確認
+
+決済完了後、Stripe CLI 側に以下のように表示されれば Webhook 受信成功です。
+
+```text
+checkout.session.completed
+[200] POST http://localhost:8000/webhooks/stripe
+```
+
+Webhook 処理が成功すると、購入記録が完了状態へ更新され、購入した面談回数が残面談回数へ加算されます。
+
+Stripe CLI の待受を終了する場合は `Ctrl + C` を押してください。
