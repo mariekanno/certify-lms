@@ -1,7 +1,24 @@
-export function initNotificationPopover() {
+export async function initNotificationPopover() {
     const root = document.querySelector('[data-notification-popover-root]');
 
     if (!root) {
+        return;
+    }
+
+    const userResponse = await fetch('/api/user', {
+        headers: {
+            Accept: 'application/json',
+        },
+        credentials: 'same-origin',
+    });
+
+    if (!userResponse.ok) {
+        return;
+    }
+
+    const user = await userResponse.json();
+
+    if (user.role === 'admin') {
         return;
     }
 
@@ -44,6 +61,7 @@ export function initNotificationPopover() {
         if (count <= 0) {
             badge.classList.add('hidden');
             badge.textContent = '0';
+
             return;
         }
 
@@ -209,6 +227,7 @@ export function initNotificationPopover() {
     trigger.addEventListener('click', () => {
         if (isOpen) {
             close();
+
             return;
         }
 
