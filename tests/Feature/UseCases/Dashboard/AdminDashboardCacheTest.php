@@ -10,6 +10,7 @@ use App\Models\Enrollment;
 use App\Models\User;
 use App\Services\EnrollmentStatusChangeService;
 use App\UseCases\Dashboard\FetchAdminDashboardAction;
+use App\UseCases\Enrollment\DestroyAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -155,6 +156,30 @@ class AdminDashboardCacheTest extends TestCase
             0.5,
             $afterRate,
             '状態遷移後は修了率キャッシュも無効化され、最新の修了率(1/2)が返るはず',
+        );
+    }
+
+    public function test_admin_dashboard_cache_is_invalidated_on_enrollment_destroy(): void
+    {
+        // Arrange: 受講中 2 件を集計してキャッシュする
+        $admin = User::factory()->admin()->inProgress()->create();
+        $cert = Certification::factory()->published()->create();
+        $enrollments = Enrollment::factory()->for($cert)->learning()->count(2)->create();
+        Cache::flush();
+
+        $before = app(FetchAdminDashboardAction::class)($admin);
+        $this->assertSame(2, $before->kpi['learning_count']);
+
+        // Act: 1 件を受講解除（SoftDelete）
+        app(DestroyAction::class)($enrollments->first());
+
+        $after = app(FetchAdminDashboardAction::class)($admin);
+
+        // Assert: キャッシュが無効化され、最新の件数が返る
+        $this->assertSame(
+            1,
+            $after->kpi['learning_count'],
+            '受講解除後は管理者ダッシュボードのキャッシュが無効化され、最新件数が返るはず',
         );
     }
 }
