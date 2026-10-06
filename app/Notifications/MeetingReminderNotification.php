@@ -7,12 +7,23 @@ namespace App\Notifications;
 use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-final class MeetingReminderNotification extends Notification
+final class MeetingReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    /**
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60];
+    }
 
     public function __construct(
         private readonly Meeting $meeting,

@@ -8,11 +8,10 @@ use App\Enums\AnnouncementTargetType;
 use App\Enums\EnrollmentStatus;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Jobs\DispatchAdminAnnouncementNotifications;
 use App\Models\Announcement;
 use App\Models\User;
-use App\Notifications\AdminAnnouncementNotification;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 final class StoreAction
@@ -42,21 +41,17 @@ final class StoreAction
                 'created_by_user_id' => $admin->id,
             ]);
 
-            $recipients = $this->recipients(
+            $recipientCount = $this->recipientsQuery(
                 $targetType,
                 $validated,
-            );
-
-            foreach ($recipients as $recipient) {
-                $recipient->notify(
-                    new AdminAnnouncementNotification($announcement),
-                );
-            }
+            )->count();
 
             $announcement->update([
-                'dispatched_count' => $recipients->count(),
+                'dispatched_count' => $recipientCount,
                 'dispatched_at' => now(),
             ]);
+
+            DispatchAdminAnnouncementNotifications::dispatch($announcement);
 
             return $announcement->fresh([
                 'targetCertification',
@@ -69,12 +64,12 @@ final class StoreAction
     /**
      * @param array<string, mixed> $validated
      *
-     * @return Collection<int, User>
+     * @return Builder<User>
      */
-    private function recipients(
+    private function recipientsQuery(
         AnnouncementTargetType $targetType,
         array $validated,
-    ): Collection {
+    ): Builder {
         $query = User::query()
             ->where('role', UserRole::Student->value)
             ->where('status', UserStatus::InProgress->value);
@@ -103,8 +98,6 @@ final class StoreAction
             ),
         };
 
-        return $query
-            ->distinct()
-            ->get();
+        return $query->distinct();
     }
 }
