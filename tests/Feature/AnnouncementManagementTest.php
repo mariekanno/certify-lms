@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\AnnouncementTargetType;
+use App\Jobs\DispatchAdminAnnouncementNotifications;
 use App\Models\Announcement;
 use App\Models\Certification;
 use App\Models\Enrollment;
 use App\Models\User;
-use App\Notifications\AdminAnnouncementNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -76,6 +77,7 @@ final class AnnouncementManagementTest extends TestCase
     public function test_admin_can_send_announcement_to_all_active_students(): void
     {
         Notification::fake();
+        Bus::fake();
 
         $admin = User::factory()->admin()->create();
 
@@ -128,32 +130,17 @@ final class AnnouncementManagementTest extends TestCase
 
         $this->assertNotNull($announcement->dispatched_at);
 
-        Notification::assertSentTo(
-            [$firstStudent, $secondStudent],
-            AdminAnnouncementNotification::class,
-            function (
-                AdminAnnouncementNotification $notification,
-                array $channels,
-            ): bool {
-                return in_array('database', $channels, true)
-                    && in_array('mail', $channels, true);
-            },
+        Bus::assertDispatched(
+            DispatchAdminAnnouncementNotifications::class,
         );
 
-        Notification::assertNotSentTo(
-            $graduatedStudent,
-            AdminAnnouncementNotification::class,
-        );
-
-        Notification::assertNotSentTo(
-            $coach,
-            AdminAnnouncementNotification::class,
-        );
+        Notification::assertNothingSent();
     }
 
     public function test_admin_can_send_announcement_to_learning_students_of_certification(): void
     {
         Notification::fake();
+        Bus::fake();
 
         $admin = User::factory()->admin()->create();
 
@@ -224,25 +211,17 @@ final class AnnouncementManagementTest extends TestCase
             $announcement->target_certification_id,
         );
 
-        Notification::assertSentTo(
-            $learningStudent,
-            AdminAnnouncementNotification::class,
+        Bus::assertDispatched(
+            DispatchAdminAnnouncementNotifications::class,
         );
 
-        Notification::assertNotSentTo(
-            $passedStudent,
-            AdminAnnouncementNotification::class,
-        );
-
-        Notification::assertNotSentTo(
-            $otherCertificationStudent,
-            AdminAnnouncementNotification::class,
-        );
+        Notification::assertNothingSent();
     }
 
     public function test_admin_can_send_announcement_to_specific_student(): void
     {
         Notification::fake();
+        Bus::fake();
 
         $admin = User::factory()->admin()->create();
 
@@ -281,15 +260,11 @@ final class AnnouncementManagementTest extends TestCase
             $announcement->target_user_id,
         );
 
-        Notification::assertSentTo(
-            $targetStudent,
-            AdminAnnouncementNotification::class,
+        Bus::assertDispatched(
+            DispatchAdminAnnouncementNotifications::class,
         );
 
-        Notification::assertNotSentTo(
-            $otherStudent,
-            AdminAnnouncementNotification::class,
-        );
+        Notification::assertNothingSent();
     }
 
     public function test_certification_target_requires_certification_id(): void
