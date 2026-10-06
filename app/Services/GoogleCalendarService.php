@@ -12,13 +12,14 @@ use Google\Service\Calendar\Event;
 use Google\Service\Calendar\EventDateTime;
 use Google\Service\Calendar\FreeBusyRequest;
 use Google\Service\Calendar\FreeBusyRequestItem;
+use Google\Service\Exception as GoogleServiceException;
 use RuntimeException;
 
 class GoogleCalendarService
 {
     public function clientFor(GoogleCredential $credential): GoogleClient
     {
-        $client = new GoogleClient;
+        $client = $this->makeClient();
 
         $client->setClientId((string) config('services.google.client_id'));
         $client->setClientSecret((string) config('services.google.client_secret'));
@@ -50,7 +51,7 @@ class GoogleCalendarService
     ): array {
         $client = $this->clientFor($credential);
 
-        $calendar = new Calendar($client);
+        $calendar = $this->makeCalendar($client);
 
         $request = new FreeBusyRequest([
             'timeMin' => $start->toRfc3339String(),
@@ -122,7 +123,7 @@ class GoogleCalendarService
         ?string $description = null,
     ): string {
         $client = $this->clientFor($credential);
-        $calendar = new Calendar($client);
+        $calendar = $this->makeCalendar($client);
 
         $event = new Event([
             'summary' => $summary,
@@ -153,11 +154,29 @@ class GoogleCalendarService
         string $eventId,
     ): void {
         $client = $this->clientFor($credential);
-        $calendar = new Calendar($client);
+        $calendar = $this->makeCalendar($client);
 
-        $calendar->events->delete(
-            $credential->calendar_id,
-            $eventId,
-        );
+        try {
+            $calendar->events->delete(
+                $credential->calendar_id,
+                $eventId,
+            );
+        } catch (GoogleServiceException $e) {
+            if ($e->getCode() === 404) {
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    protected function makeClient(): GoogleClient
+    {
+        return new GoogleClient;
+    }
+
+    protected function makeCalendar(GoogleClient $client): Calendar
+    {
+        return new Calendar($client);
     }
 }
