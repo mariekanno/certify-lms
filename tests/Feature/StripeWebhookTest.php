@@ -11,8 +11,10 @@ use App\Models\MeetingQuotaTransaction;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class StripeWebhookTest extends TestCase
 {
     use RefreshDatabase;
@@ -126,6 +128,20 @@ class StripeWebhookTest extends TestCase
         $response = $this
             ->withHeader('Stripe-Signature', 'invalid-signature')
             ->postJson('/webhooks/stripe', $payload);
+
+        $response->assertStatus(400);
+
+        $this->assertDatabaseCount('meeting_quota_transactions', 0);
+    }
+
+    public function test_missing_signature_returns_400(): void
+    {
+        $payload = $this->completedPayload(
+            sessionId: 'cs_test_missing_signature',
+            paymentIntentId: 'pi_test_missing_signature',
+        );
+
+        $response = $this->postJson('/webhooks/stripe', $payload);
 
         $response->assertStatus(400);
 

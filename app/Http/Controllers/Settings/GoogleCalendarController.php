@@ -113,7 +113,7 @@ class GoogleCalendarController extends Controller
             ->with('success', 'Googleカレンダーとの連携を解除しました。');
     }
 
-    private function googleClient(): GoogleClient
+    protected function googleClient(): GoogleClient
     {
         $client = new GoogleClient;
 

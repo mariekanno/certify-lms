@@ -60,6 +60,11 @@ final class GeminiService
 
         $response = Http::acceptJson()
             ->timeout(60)
+            ->retry(
+                2,
+                100,
+                throw: false,
+            )
             ->post(
                 "{$baseUrl}/models/{$model}:generateContent?key={$apiKey}",
                 $payload,
