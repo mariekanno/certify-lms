@@ -51,6 +51,37 @@ final class NotificationApiTest extends TestCase
             ->assertJsonPath('data.0.is_unread', true);
     }
 
+    public function test_notification_api_returns_latest_20_notifications(): void
+    {
+        $user = User::factory()->create();
+
+        $oldest = $this->createNotification(
+            $user,
+            title: '最古の通知',
+            createdAt: now()->subMinutes(21)->toDateTimeString(),
+        );
+
+        for ($i = 20; $i >= 1; $i--) {
+            $this->createNotification(
+                $user,
+                title: "通知{$i}",
+                createdAt: now()->subMinutes($i)->toDateTimeString(),
+            );
+        }
+
+        $response = $this
+            ->actingAs($user)
+            ->getJson('/api/v1/notifications');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(20, 'data');
+
+        $ids = collect($response->json('data'))->pluck('id');
+
+        $this->assertFalse($ids->contains($oldest->id));
+    }
+
     public function test_authenticated_user_can_mark_own_notification_as_read(): void
     {
         $user = User::factory()->create();
@@ -141,6 +172,7 @@ final class NotificationApiTest extends TestCase
         string $title,
         ?string $readAt = null,
         ?string $url = '/dashboard',
+        ?string $createdAt = null,
     ): DatabaseNotification {
         $id = (string) Str::uuid();
 
@@ -156,8 +188,8 @@ final class NotificationApiTest extends TestCase
                 'notification_type' => 'test_notification',
             ], JSON_THROW_ON_ERROR),
             'read_at' => $readAt,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => $createdAt ?? now(),
+            'updated_at' => $createdAt ?? now(),
         ]);
 
         return DatabaseNotification::query()

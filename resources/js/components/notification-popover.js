@@ -16,12 +16,6 @@ export async function initNotificationPopover() {
         return;
     }
 
-    const user = await userResponse.json();
-
-    if (user.role === 'admin') {
-        return;
-    }
-
     const trigger = root.querySelector('[data-notification-popover-trigger]');
     const panel = root.querySelector('[data-notification-popover-panel]');
     const badge = root.querySelector('[data-notification-popover-badge]');
@@ -149,7 +143,19 @@ export async function initNotificationPopover() {
         }
     }
 
+    async function ensureCsrfCookie() {
+        const response = await fetch('/sanctum/csrf-cookie', {
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            throw new Error('CSRF Cookieの取得に失敗しました。');
+        }
+    }
+
     async function markAsRead(notification) {
+        await ensureCsrfCookie();
+
         const response = await fetch(
             `/api/v1/notifications/${notification.id}/read`,
             {
@@ -166,37 +172,25 @@ export async function initNotificationPopover() {
             throw new Error('通知の既読化に失敗しました。');
         }
 
-        const json = await response.json();
-
-        notification.is_unread = false;
-
-        updateUnreadCount(json.unread_count);
-        render();
+        await fetchNotifications();
     }
 
-    async function markAllAsRead() {
-        const response = await fetch('/api/v1/notifications/read-all', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken ?? '',
-            },
-            credentials: 'same-origin',
-        });
+    function markAllAsRead() {
+        const form = document.createElement('form');
 
-        if (!response.ok) {
-            throw new Error('通知の一括既読化に失敗しました。');
-        }
+        form.method = 'POST';
+        form.action = '/notifications/read-all';
+        form.style.display = 'none';
 
-        const json = await response.json();
+        const token = document.createElement('input');
 
-        notifications = notifications.map((notification) => ({
-            ...notification,
-            is_unread: false,
-        }));
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = csrfToken ?? '';
 
-        updateUnreadCount(json.unread_count);
-        render();
+        form.appendChild(token);
+        document.body.appendChild(form);
+        form.submit();
     }
 
     function open() {
@@ -234,8 +228,8 @@ export async function initNotificationPopover() {
         open();
     });
 
-    markAllButton.addEventListener('click', async () => {
-        await markAllAsRead();
+    markAllButton.addEventListener('click', () => {
+        markAllAsRead();
     });
 
     tabs.forEach((tab) => {
