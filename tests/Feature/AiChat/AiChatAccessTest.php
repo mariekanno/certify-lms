@@ -142,4 +142,35 @@ class AiChatAccessTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_ai_chat_returns_404_when_feature_flag_is_disabled(): void
+    {
+        config([
+            'ai-chat.enabled' => false,
+        ]);
+
+        $student = User::factory()
+            ->student()
+            ->inProgress()
+            ->create();
+
+        $response = $this
+            ->actingAs($student)
+            ->get(route('ai-chat.index'));
+
+        $response->assertNotFound();
+    }
+
+    public function test_admin_cannot_access_ai_chat(): void
+    {
+        $admin = User::factory()
+            ->admin()
+            ->create();
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('ai-chat.index'));
+
+        $response->assertForbidden();
+    }
 }

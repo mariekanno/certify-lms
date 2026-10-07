@@ -41,7 +41,7 @@ final class AiChatMessageService
                 'unavailable' => true,
             ];
         }
-        $dailyLimit = (int) config('ai-chat.daily_limit', 30);
+        $dailyLimit = (int) config('ai-chat.daily_limit', 50);
 
         $todayCount = AiChatMessage::query()
             ->where('role', AiChatMessageRole::User->value)
@@ -70,7 +70,7 @@ final class AiChatMessageService
             'content' => '',
             'model' => config(
                 'ai-chat.gemini.model',
-                'gemini-3.1-flash-lite',
+                'gemini-2.5-flash-lite',
             ),
         ]);
 
@@ -80,7 +80,7 @@ final class AiChatMessageService
 
         $conversation->loadMissing([
             'enrollment.certification',
-            'section.chapter.part',
+            'section.chapter.part.certification',
         ]);
 
         try {
@@ -163,7 +163,7 @@ final class AiChatMessageService
     ): array {
         $historyLimit = max(
             1,
-            (int) config('ai-chat.history_limit', 10),
+            (int) config('ai-chat.history_limit', 20),
         );
 
         return $conversation->messages()
@@ -172,6 +172,7 @@ final class AiChatMessageService
                 AiChatMessageRole::User->value,
                 AiChatMessageRole::Assistant->value,
             ])
+            ->reorder()
             ->latest('created_at')
             ->limit($historyLimit)
             ->get()
@@ -206,8 +207,24 @@ final class AiChatMessageService
         }
 
         if ($conversation->section !== null) {
-            $lines[] = '現在閲覧している教材Section: '
-                .$conversation->section->title;
+            $section = $conversation->section;
+            $chapter = $section->chapter;
+            $part = $chapter?->part;
+            $certification = $part?->certification;
+
+            if ($certification !== null) {
+                $lines[] = '教材の所属資格: '.$certification->name;
+            }
+
+            if ($part !== null) {
+                $lines[] = 'Part: '.$part->title;
+            }
+
+            if ($chapter !== null) {
+                $lines[] = 'Chapter: '.$chapter->title;
+            }
+
+            $lines[] = 'Section: '.$section->title;
 
             $sectionContent = $this->sectionContent(
                 $conversation->section,
@@ -276,9 +293,17 @@ TEXT,
                 return;
             }
 
-            $conversation->update([
-                'title' => mb_substr($title, 0, 100),
-            ]);
+            $updated = AiChatConversation::query()
+                ->whereKey($conversation->id)
+                ->where('auto_title_enabled', true)
+                ->where('title', '新しい相談')
+                ->update([
+                    'title' => mb_substr($title, 0, 100),
+                ]);
+
+            if ($updated === 1) {
+                $conversation->refresh();
+            }
         } catch (Throwable $e) {
             Log::channel('ai-chat')->warning(
                 'AI chat title generation failed.',

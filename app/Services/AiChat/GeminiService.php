@@ -29,7 +29,7 @@ final class GeminiService
         ?string $systemInstruction = null,
     ): array {
         $apiKey = (string) config('ai-chat.gemini.api_key');
-        $model = (string) config('ai-chat.gemini.model', 'gemini-3.1-flash-lite');
+        $model = (string) config('ai-chat.gemini.model', 'gemini-2.5-flash-lite');
         $baseUrl = rtrim(
             (string) config(
                 'ai-chat.gemini.base_url',
