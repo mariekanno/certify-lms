@@ -6,7 +6,6 @@ namespace App\Http\Requests\Settings;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class GoogleCalendarRedirectRequest extends FormRequest
 {
@@ -25,12 +24,6 @@ class GoogleCalendarRedirectRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'redirect_path' => [
-                'nullable',
-                'string',
-                Rule::in(['/settings/availability']),
-            ],
-        ];
+        return [];
     }
 }

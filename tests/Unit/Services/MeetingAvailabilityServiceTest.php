@@ -242,4 +242,88 @@ class MeetingAvailabilityServiceTest extends TestCase
             $times,
         );
     }
+
+    public function test_google_calendar_free_event_keeps_slots_available(): void
+    {
+        $certification = Certification::factory()->published()->create();
+        $coach = User::factory()->coach()->create();
+        $this->attachCoach($certification, $coach);
+
+        GoogleCredential::query()->create([
+            'user_id' => $coach->id,
+            'calendar_id' => 'primary',
+            'access_token' => 'test-access-token',
+            'refresh_token' => 'test-refresh-token',
+            'token_expires_at' => now()->addHour(),
+            'connected_at' => now(),
+        ]);
+
+        $date = Carbon::parse('2026-06-01');
+
+        CoachAvailability::factory()
+            ->forCoach($coach)
+            ->onDay(1)
+            ->timeRange('09:00:00', '12:00:00')
+            ->create();
+
+        // Free予定はFreeBusy APIのBusy一覧に含まれない
+        $mock = $this->mock(GoogleCalendarService::class);
+
+        $mock->shouldReceive('busyPeriods')
+            ->once()
+            ->andReturn([]);
+
+        $slots = app(MeetingAvailabilityService::class)
+            ->slotsForCertification($certification, $date);
+
+        $times = $slots
+            ->map(fn (array $slot) => $slot['slot_start']->format('H:i'))
+            ->all();
+
+        $this->assertSame(
+            ['09:00', '10:00', '11:00'],
+            $times,
+        );
+    }
+
+    public function test_excludes_all_slots_for_google_calendar_all_day_busy_event(): void
+    {
+        $certification = Certification::factory()->published()->create();
+        $coach = User::factory()->coach()->create();
+        $this->attachCoach($certification, $coach);
+
+        GoogleCredential::query()->create([
+            'user_id' => $coach->id,
+            'calendar_id' => 'primary',
+            'access_token' => 'test-access-token',
+            'refresh_token' => 'test-refresh-token',
+            'token_expires_at' => now()->addHour(),
+            'connected_at' => now(),
+        ]);
+
+        $date = Carbon::parse('2026-06-01');
+
+        CoachAvailability::factory()
+            ->forCoach($coach)
+            ->onDay(1)
+            ->timeRange('09:00:00', '12:00:00')
+            ->create();
+
+        $mock = $this->mock(GoogleCalendarService::class);
+
+        // Busyの終日予定：当日00:00から翌日00:00まで
+        $mock->shouldReceive('busyPeriods')
+            ->once()
+            ->andReturn([
+                [
+                    'start' => '2026-06-01T00:00:00+09:00',
+                    'end' => '2026-06-02T00:00:00+09:00',
+                ],
+            ]);
+
+        $slots = app(MeetingAvailabilityService::class)
+            ->slotsForCertification($certification, $date);
+
+        $this->assertCount(0, $slots);
+    }
 }
