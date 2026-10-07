@@ -179,6 +179,10 @@ sail bin pint --test     # 整形漏れの確認（CI 相当のチェック）
 
 - `PUSHER_*` — チャットのリアルタイム配信に使用します。有効にする場合は Pusher のキーを取得して設定し、`BROADCAST_DRIVER=pusher` に変更してください。未設定（既定の `BROADCAST_DRIVER=log`）でもメッセージの送受信自体は動作し、相手画面へのリアルタイム反映のみ行われません。
 
+- `AI_CHAT_ENABLED` / `AI_CHAT_DAILY_LIMIT` / `AI_CHAT_HISTORY_LIMIT` — AIチャット機能の有効化、1日あたりの送信上限、会話履歴として参照する件数を設定します。既定値はそれぞれ `true`、`50`、`20` です。
+
+- `GEMINI_API_KEY` / `GEMINI_MODEL` / `GEMINI_BASE_URL` — AIチャットの Gemini API 連携に使用します。`GEMINI_API_KEY` に Google AI Studio 等で取得した API キーを設定してください。既定モデルは `gemini-2.5-flash-lite`、既定の API ベースURLは `https://generativelanguage.googleapis.com/v1beta` です。APIキーが未設定の場合、AIチャットの送信時にエラーとなります。
+
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` — コーチの Google Calendar 連携に使用します。Google Cloud Console で OAuth 2.0 クライアントを作成し、Google Calendar API を有効化したうえで設定してください。ローカル開発では `GOOGLE_REDIRECT_URI=http://localhost:8000/settings/google-calendar/callback` を使用します。
 
 - Google Calendar のアクセストークン・リフレッシュトークンはデータベースに保存されます。本実装では暗号化保存は行っていないため、本番環境で運用する場合は Laravel の暗号化機能等を利用して認証情報を暗号化して保存することを推奨します。
