@@ -41,7 +41,7 @@ class DownloadTest extends TestCase
             ->get(route('certificates.download', $certificate));
 
         $response->assertOk();
-        $response->assertDownload('certificate.pdf');
+        $response->assertDownload("certificate-{$certificate->id}.pdf");
     }
 
     public function test_other_student_cannot_download_certificate(): void
@@ -101,7 +101,7 @@ class DownloadTest extends TestCase
             ->actingAs($coach)
             ->get(route('certificates.download', $certificate))
             ->assertOk()
-            ->assertDownload('certificate.pdf');
+            ->assertDownload("certificate-{$certificate->id}.pdf");
     }
 
     public function test_unassigned_coach_cannot_download_certificate(): void
@@ -154,7 +154,7 @@ class DownloadTest extends TestCase
             ->actingAs($admin)
             ->get(route('certificates.download', $certificate))
             ->assertOk()
-            ->assertDownload('certificate.pdf');
+            ->assertDownload("certificate-{$certificate->id}.pdf");
     }
 
     public function test_returns_404_when_pdf_file_does_not_exist(): void

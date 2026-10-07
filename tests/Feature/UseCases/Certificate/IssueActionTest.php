@@ -121,5 +121,10 @@ class IssueActionTest extends TestCase
         $certificate = app(IssueAction::class)($enrollment);
 
         Storage::disk('private')->assertExists($certificate->pdf_path);
+
+        $this->assertSame(
+            "certificates/certificate-{$certificate->id}.pdf",
+            $certificate->pdf_path,
+        );
     }
 }
