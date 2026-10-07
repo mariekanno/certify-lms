@@ -32,13 +32,13 @@ class AiChatMessageController extends Controller
 
         if (($result['unavailable'] ?? false) === true) {
             return response()->json([
-                'message' => 'AI相談は現在利用できません。',
+                'message' => 'AI相談機能は現在ご利用いただけません。',
             ], 503);
         }
 
         if ($result['status'] === 429) {
             return response()->json([
-                'message' => '本日のAI相談の利用上限に達しました。',
+                'message' => '本日の利用上限に達しました。明日 0:00 以降に再度ご利用ください。',
             ], 429);
         }
 
