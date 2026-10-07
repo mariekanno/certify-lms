@@ -247,6 +247,10 @@ class EnrollmentControllerTest extends TestCase
         $response = $this->actingAs($student)->post(route('enrollments.receiveCertificate', $enrollment));
 
         $response->assertRedirect(route('enrollments.show', $enrollment));
+        $response->assertSessionHas(
+            'success',
+            '修了証を発行しました。おめでとうございます！'
+        );
         $this->assertSame(EnrollmentStatus::Passed, $enrollment->fresh()->status);
         $this->assertDatabaseHas('certificates', ['enrollment_id' => $enrollment->id]);
     }

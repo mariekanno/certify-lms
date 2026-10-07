@@ -20,7 +20,7 @@ class CertificateDownloadController extends Controller
 
         return Storage::disk('private')->download(
             $certificate->pdf_path,
-            'certificate.pdf',
+            "certificate-{$certificate->id}.pdf",
         );
     }
 }

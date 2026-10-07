@@ -11,7 +11,6 @@ use App\Models\Certificate;
 use App\Models\Enrollment;
 use App\Services\CertificatePdfService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * 修了証を発行するユースケース。受講生自己発火型の修了処理 `\App\UseCases\Enrollment\ReceiveCertificateAction` から呼び出される。
@@ -53,8 +52,12 @@ final class IssueAction
                 'user_id' => $enrollment->user_id,
                 'enrollment_id' => $enrollment->id,
                 'certification_id' => $enrollment->certification_id,
-                'pdf_path' => 'certificates/'.Str::ulid().'.pdf',
+                'pdf_path' => '',
                 'issued_at' => now(),
+            ]);
+
+            $certificate->update([
+                'pdf_path' => "certificates/certificate-{$certificate->id}.pdf",
             ]);
 
             $this->pdfService->generate($certificate);
