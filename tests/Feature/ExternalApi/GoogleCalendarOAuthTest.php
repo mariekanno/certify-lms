@@ -107,7 +107,7 @@ class GoogleCalendarOAuthTest extends TestCase
             ->assertRedirect('/settings/availability')
             ->assertSessionHas(
                 'success',
-                'Googleカレンダーとの連携を解除しました。',
+                'Googleカレンダー連携を解除しました。',
             );
 
         $this->assertDatabaseCount('google_credentials', 0);

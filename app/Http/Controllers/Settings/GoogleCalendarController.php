@@ -20,7 +20,7 @@ class GoogleCalendarController extends Controller
         $request->session()->put('google_oauth_state', $state);
         $request->session()->put(
             'google_oauth_redirect_path',
-            $request->validated('redirect_path') ?? '/settings/availability',
+            '/settings/availability',
         );
 
         $client = $this->googleClient();
@@ -110,7 +110,7 @@ class GoogleCalendarController extends Controller
             ->delete();
 
         return redirect('/settings/availability')
-            ->with('success', 'Googleカレンダーとの連携を解除しました。');
+            ->with('success', 'Googleカレンダー連携を解除しました。');
     }
 
     protected function googleClient(): GoogleClient

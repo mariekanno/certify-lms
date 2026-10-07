@@ -25,10 +25,6 @@ class GoogleCalendarCallbackRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'state' => [
-                'required',
-                'string',
-            ],
             'code' => [
                 'nullable',
                 'string',
