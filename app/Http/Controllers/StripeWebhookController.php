@@ -39,6 +39,35 @@ class StripeWebhookController extends Controller
             ], 400);
         }
 
+        $session = $event->data->object;
+
+        if ($event->type === 'checkout.session.expired') {
+            $payment = Payment::query()
+                ->where('stripe_checkout_session_id', $session->id)
+                ->first();
+
+            if (! $payment) {
+                return response()->json(['received' => true]);
+            }
+
+            DB::transaction(function () use ($payment): void {
+                $payment = Payment::query()
+                    ->lockForUpdate()
+                    ->findOrFail($payment->id);
+
+                if ($payment->status !== PaymentStatus::Pending) {
+                    return;
+                }
+
+                $payment->update([
+                    'status' => PaymentStatus::Failed,
+                    'failed_at' => now(),
+                ]);
+            });
+
+            return response()->json(['received' => true]);
+        }
+
         if ($event->type !== 'checkout.session.completed') {
             return response()->json(['received' => true]);
         }

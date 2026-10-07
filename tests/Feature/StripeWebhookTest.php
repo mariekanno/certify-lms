@@ -233,4 +233,102 @@ class StripeWebhookTest extends TestCase
             $json,
         );
     }
+
+    public function test_expired_checkout_marks_pending_payment_failed(): void
+    {
+        $user = User::factory()->create();
+
+        $meetingPack = MeetingPack::factory()->create([
+            'meeting_count' => 1,
+            'price' => 3000,
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'meeting_pack_id' => $meetingPack->id,
+            'stripe_checkout_session_id' => 'cs_test_expired',
+            'stripe_payment_intent_id' => null,
+            'amount' => 3000,
+            'quantity' => 1,
+            'currency' => 'jpy',
+            'status' => PaymentStatus::Pending,
+            'completed_at' => null,
+            'failed_at' => null,
+        ]);
+
+        $payload = [
+            'id' => 'evt_test_expired',
+            'object' => 'event',
+            'type' => 'checkout.session.expired',
+            'data' => [
+                'object' => [
+                    'id' => $payment->stripe_checkout_session_id,
+                    'object' => 'checkout.session',
+                ],
+            ],
+        ];
+
+        $response = $this->postStripeWebhook($payload);
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'received' => true,
+            ]);
+
+        $payment->refresh();
+
+        $this->assertSame(PaymentStatus::Failed, $payment->status);
+        $this->assertNotNull($payment->failed_at);
+        $this->assertNull($payment->completed_at);
+
+        $this->assertDatabaseMissing('meeting_quota_transactions', [
+            'related_payment_id' => $payment->id,
+        ]);
+    }
+
+    public function test_expired_checkout_does_not_change_completed_payment(): void
+    {
+        $user = User::factory()->create();
+
+        $meetingPack = MeetingPack::factory()->create([
+            'meeting_count' => 1,
+            'price' => 3000,
+        ]);
+
+        $completedAt = now()->subMinute();
+
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'meeting_pack_id' => $meetingPack->id,
+            'stripe_checkout_session_id' => 'cs_test_completed_then_expired',
+            'stripe_payment_intent_id' => 'pi_test_completed_then_expired',
+            'amount' => 3000,
+            'quantity' => 1,
+            'currency' => 'jpy',
+            'status' => PaymentStatus::Completed,
+            'completed_at' => $completedAt,
+            'failed_at' => null,
+        ]);
+
+        $payload = [
+            'id' => 'evt_test_completed_then_expired',
+            'object' => 'event',
+            'type' => 'checkout.session.expired',
+            'data' => [
+                'object' => [
+                    'id' => $payment->stripe_checkout_session_id,
+                    'object' => 'checkout.session',
+                ],
+            ],
+        ];
+
+        $this->postStripeWebhook($payload)->assertOk();
+
+        $payment->refresh();
+
+        $this->assertSame(PaymentStatus::Completed, $payment->status);
+        $this->assertNotNull($payment->completed_at);
+        $this->assertNull($payment->failed_at);
+    }
 }
