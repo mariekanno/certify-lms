@@ -42,13 +42,17 @@ class MeetingQuotaCheckoutController extends Controller
 
         $meetingPack = MeetingPack::query()
             ->published()
-            ->findOrFail($validated['meeting_pack_id']);
+            ->find($validated['meeting_pack_id']);
+
+        if ($meetingPack === null) {
+            abort(422, '購入できない面談パックです。');
+        }
 
         $stripeSecret = (string) config('services.stripe.secret');
 
         abort_if($stripeSecret === '', 503, 'Stripe決済は現在利用できません。');
 
-        $stripe = new StripeClient($stripeSecret);
+        $stripe = $this->stripeClient($stripeSecret);
 
         $session = $stripe->checkout->sessions->create([
             'mode' => 'payment',
@@ -70,7 +74,7 @@ class MeetingQuotaCheckoutController extends Controller
                 'meeting-quota.checkout.success',
                 ['session_id' => '{CHECKOUT_SESSION_ID}'],
             ),
-            'cancel_url' => route('meeting-quota.checkout.select'),
+            'cancel_url' => url('/dashboard'),
             'metadata' => [
                 'user_id' => $user->id,
                 'meeting_pack_id' => $meetingPack->id,
@@ -113,5 +117,10 @@ class MeetingQuotaCheckoutController extends Controller
         return view('meeting-quota.success', [
             'payment' => $payment,
         ]);
+    }
+
+    protected function stripeClient(string $secret): StripeClient
+    {
+        return new StripeClient($secret);
     }
 }
